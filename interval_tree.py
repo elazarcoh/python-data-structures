@@ -66,7 +66,7 @@ class IntervalsTree:
     def __getitem__(self, index):
         if isinstance(index, slice):
             if index.step is not None:
-                raise NotImplementedError('intervals tree supports only sequences')
+                raise NotImplementedError('intervals tree supports only continues sequences')
             i, j = index.start, index.stop
             i = 0 if i is None else i
             j = self.high_bound - 1 if j is None else j
