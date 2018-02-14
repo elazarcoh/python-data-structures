@@ -65,6 +65,8 @@ class IntervalsTree:
 
     def __getitem__(self, index):
         if isinstance(index, slice):
+            if index.step is not None:
+                raise NotImplementedError('intervals tree supports only sequences')
             i, j = index.start, index.stop
             i = 0 if i is None else i
             j = self.high_bound - 1 if j is None else j
@@ -78,12 +80,12 @@ class IntervalsTree:
                 raise IndexError('index out of range')
             return self.leaves[index].data()
 
-    def __build_tree(self, leaves, height):
+    def __build_tree(self, leaves, height, start=0):
         if len(leaves) <= 1:
             return leaves[0]
         i = 0
         interval_len = (2 ** height) - 1
-        low = 0
+        low = start
         high = low + interval_len
         new_leaves = []
         while i < len(leaves):
@@ -100,7 +102,7 @@ class IntervalsTree:
             i += 1
             low = high + 1
             high = low + interval_len
-        return self.__build_tree(new_leaves, height + 1)
+        return self.__build_tree(new_leaves, height + 1, start)
 
     def get_interval(self, i, j):
         if (i, j) not in self.root:
@@ -147,3 +149,29 @@ class IntervalsTree:
     def __len__(self):
         return self.high_bound
 
+    def append(self, value):
+        if self.high_bound == len(self.leaves):
+            pad_len = len(self.leaves)
+            pad = [IntervalTreeNode(self.__default, interval=(i, i)) for i in
+                   range(len(self.leaves), len(self.leaves) + pad_len)]
+            new_right = self.__build_tree(pad, 1, start=len(self.leaves))
+            self.leaves.extend(pad)
+            self.root = IntervalTreeNode(self.op(self.root.data(), new_right.data()),
+                                         left=self.root, right=new_right,
+                                         interval=(0, len(self.leaves)))
+            self.root.left().set_parent(self.root)
+            self.root.right().set_parent(self.root)
+        self.high_bound += 1
+        self.__setitem__(self.high_bound - 1, value)
+
+    def pop(self):
+        if self.high_bound == 0:
+            raise IndexError('pop from empty list')
+        self[self.high_bound - 1] = self.__default
+        self.high_bound -= 1
+
+    def __contains__(self, item):
+        return item in map(IntervalTreeNode.data, self.leaves[:self.high_bound])
+
+    def __repr__(self):
+        return str(list(map(IntervalTreeNode.data, self.leaves[:self.high_bound])))
